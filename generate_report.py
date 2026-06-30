@@ -40,6 +40,7 @@ th, td {
 here = Path(__file__).parent
 log_file = here / 'log.csv'
 ignore_file = Path(here / 'ignore.txt')
+script_file = Path(here / 'render-charts.js')
 my_tz = ZoneInfo(TIMEZONE)
 con = sqlite3.connect(here / 'database.sqlite', autocommit=True)
 cur = con.cursor()
@@ -67,7 +68,7 @@ class Blacklist:
 
 def main():
     setup()
-    # download()
+    download()
     update()
     domain_stats = get_domain_stats()
     time_stats = get_time_stats()
@@ -148,6 +149,7 @@ def layout(content):
     return html[
         head[
             meta(charset='utf-8'),
+            meta(name='viewport', content='width=device-width,initial-scale=1'),
             title[title_text],
             style[STYLES],
             script(src='https://cdn.plot.ly/plotly-3.6.0.min.js'),
@@ -155,7 +157,9 @@ def layout(content):
         body[
             h1[title_text],
             *content,
-            script(src='./render-charts.js'),
+            script[
+                Markup(script_file.read_text())
+            ],
         ]
     ]
 
