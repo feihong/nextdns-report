@@ -13,7 +13,7 @@ from pathlib import Path
 import re
 import itertools
 from zoneinfo import ZoneInfo
-import html
+import argparse
 
 import requests
 from htpy import (html, head, meta, title, style, body, h1, h2, table, thead, tbody, tr, th, td, a as anchor, script)
@@ -42,6 +42,11 @@ log_file = here / 'log.csv'
 ignore_file = Path(here / 'ignore.txt')
 script_file = Path(here / 'render-charts.js')
 my_tz = ZoneInfo(TIMEZONE)
+
+parser = argparse.ArgumentParser(prog='NextDNS report generator')
+parser.add_argument('--skip-download', action='store_true')
+args = parser.parse_args()
+
 con = sqlite3.connect(here / 'database.sqlite', autocommit=True)
 cur = con.cursor()
 
@@ -77,6 +82,10 @@ def main():
 
 
 def download():
+    if args.skip_download:
+        print('Skipping download')
+        return
+
     url = f'https://api.nextdns.io/profiles/{PROFILE_ID}/logs/download'
     cmd = [
         'curl',
@@ -140,6 +149,7 @@ def get_time_stats():
     GROUP BY hour_of_day
     ORDER BY hour_of_day DESC
     ''')
+    # Group by day
     return itertools.groupby(cur.fetchall(), lambda r: r[0][:10])
 
 
@@ -161,6 +171,32 @@ def layout(content):
         ]
     ]
 
+def massage_chart_data(time_lines):
+    """
+    Strip date from label, sort chronologically, fill in missing hours
+    """
+    def generate():
+        for hour_of_day, count in time_lines:
+            yield hour_of_day[11:], count
+
+    lst = list(generate())
+    lst.sort(key=lambda x: x[0])
+    if len(lst) <= 1:
+        return lst
+    else:
+        start = int(lst[0][0][:-3])
+        end = int(lst[-1][0][:-3])
+        expected_len = end - start + 1
+        if len(lst) != expected_len:
+            new_lst = [None] * expected_len
+            lst_dict = dict(lst)
+            for i in range(expected_len):
+                time_label = f'{start + i:02}:00'
+                new_lst[i] = [time_label, lst_dict.get(time_label, 0)]
+            return new_lst
+        else:
+            return lst
+
 
 def generate_report(domain_stats, time_stats):
     def get_stats():
@@ -177,14 +213,9 @@ def generate_report(domain_stats, time_stats):
             td[count],
         ]
 
-    def histogram_data(time_lines):
-        def generate():
-            for hour_of_day, count in time_lines:
-                yield hour_of_day[11:], count
-
-        lst = list(generate())
-        lst.sort(key=lambda x: x[0])
-        return Markup(json.dumps(lst))
+    def chart_data(time_lines):
+        data = massage_chart_data(time_lines)
+        return Markup(json.dumps(data))
 
     def content():
         for date, domain_lines, time_lines in get_stats():
@@ -199,8 +230,8 @@ def generate_report(domain_stats, time_stats):
                 ]
             ]
 
-            yield script(class_='histogram', type='application/json')[
-                histogram_data(time_lines)
+            yield script(class_='chart', type='application/json')[
+                chart_data(time_lines)
             ]
 
 

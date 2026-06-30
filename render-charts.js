@@ -1,4 +1,4 @@
-for (const node of Array.from(document.querySelectorAll('script.histogram'))) {
+for (const node of Array.from(document.querySelectorAll('script.chart'))) {
   const div = document.createElement('div')
   node.after(div)
 
