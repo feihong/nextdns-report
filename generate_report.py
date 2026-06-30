@@ -22,7 +22,7 @@ from markupsafe import Markup
 
 API_KEY = os.environ['API_KEY']
 PROFILE_ID = os.environ['PROFILE_ID']
-OUTPUT_FILE = os.environ['OUTPUT_FILE']
+OUTPUT_FILE = Path(os.environ['OUTPUT_DIR']) / 'index.html'
 TIMEZONE = os.environ['TIMEZONE']
 
 
@@ -157,9 +157,7 @@ def layout(content):
         body[
             h1[title_text],
             *content,
-            script[
-                Markup(script_file.read_text())
-            ],
+            script(src='render-charts.js'),
         ]
     ]
 
