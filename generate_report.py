@@ -150,11 +150,12 @@ def layout(content):
             meta(charset='utf-8'),
             title[title_text],
             style[STYLES],
-            script(src='https://plot.ly'),
+            script(src='https://cdn.plot.ly/plotly-3.6.0.min.js'),
         ],
         body[
             h1[title_text],
             *content,
+            script(src='./render-charts.js'),
         ]
     ]
 
